@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
             }
             else  {
                 size_t command_len = strlen(command);
-                char worked = 0;
+                char worked = -1;
                 for (size_t i = 0; i < len; i++)    {
                     // printf("PATH element %0lu is %s\n", i+1,  parsed_path[i]);
                     size_t segment_len = strlen(parsed_path[i]);
@@ -191,11 +191,11 @@ int main(int argc, char **argv) {
                     free(program);
                     // printf("%i\n", status);
                     if (!status || status != -1)  {
-                        worked = !status;
+                        worked = status;
                         break;
                     }
                 }
-                if (!worked)  {
+                if (worked == -1)  {
                     size_t _;
                     char **parsed = split_on_char(command, ' ', &_);
                     printf("%s does not exits... ಠ_ಠ\n", parsed[0]);
