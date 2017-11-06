@@ -32,12 +32,12 @@ size_t cached_path_index = 0, cached_user_index = 0;
 char *prompt = (char *) ">>> ";
 char prompt_changed = 0;
 
-char **split_on_char(char *string, char tok, size_t *len) {
+char **split_on_char(char *string, const char *tok, size_t *len) {
     char **ret = (char **) malloc(sizeof(char **) * 100),
           *token = NULL;
     *len = 0;
     // loop idea gotten from https://stackoverflow.com/a/26228023
-    while ((token = strsep(&string, &tok))) {
+    while ((token = strsep(&string, tok))) {
         ret[(*len)++] = token;
         if ((*len) > 100)   {
             ret = (char **) realloc(ret, sizeof(char **) * (*len + 1));
@@ -75,7 +75,7 @@ char *get_user()  {
 char **parse_path(size_t *len) {
     char *PATH = (char *) malloc(sizeof(char) * (strlen(get_path()) + 1));
     strcpy(PATH, get_path());
-    return split_on_char(PATH, ':', len);
+    return split_on_char(PATH, ":", len);
 }
 
 char *translate_home(char *string, size_t *len) {
@@ -94,7 +94,7 @@ char *translate_home(char *string, size_t *len) {
 char run_command(char *command, char silent_dne) {
     size_t len = 0,
           *lens;
-    char **parsed = split_on_char(command, ' ', &len);
+    char **parsed = split_on_char(command, " ", &len);
     char ret = 0;
     lens = (size_t *) malloc(sizeof(size_t) * len);
     for (size_t i = 0; i < len; i++)  {
@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
             }
             else  {
                 size_t command_len = strlen(command);
-                char worked = -1;
+                char worked = 0;
                 for (size_t i = 0; i < len; i++)    {
                     // printf("PATH element %0lu is %s\n", i+1,  parsed_path[i]);
                     size_t segment_len = strlen(parsed_path[i]);
@@ -191,13 +191,13 @@ int main(int argc, char **argv) {
                     free(program);
                     // printf("%i\n", status);
                     if (!status || status != -1)  {
-                        worked = status;
+                        worked = !status;
                         break;
                     }
                 }
-                if (worked == -1)  {
+                if (!worked)  {
                     size_t _;
-                    char **parsed = split_on_char(command, ' ', &_);
+                    char **parsed = split_on_char(command, " ", &_);
                     printf("%s does not exits... ಠ_ಠ\n", parsed[0]);
                     free(parsed);
                 }
