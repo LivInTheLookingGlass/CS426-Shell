@@ -34,6 +34,12 @@ char *prompt = (char *) ">>> ";
 char prompt_changed = 0;
 
 char **split_on_char(char *string, const char *tok, size_t *len) {
+    /*
+    * Returns an array of strings, based on the input string, split by tok.
+    * len is modified to have the size of the returned array.
+    * Note: If you generate from this, you are responsible for free()ing the
+    * results
+    */
     char **ret = (char **) malloc(sizeof(char **) * 100),
           *token = NULL;
     *len = 0;
@@ -48,6 +54,10 @@ char **split_on_char(char *string, const char *tok, size_t *len) {
 }
 
 char *get_path()    {
+    /*
+    * Fetches the path from the environment, caching its position so that it is
+    * faster to get the next time. You do not need to free() the result.
+    */
     if (!strncmp("PATH=", environ[cached_path_index], 5))   {
         return environ[cached_path_index] + 5;
     }
@@ -61,6 +71,10 @@ char *get_path()    {
 }
 
 char *get_user()  {
+    /*
+    * Fetches the username from the environment, caching its position so that it
+    * is faster to get the next time. You do not need to free() the result.
+    */
     if (!strncmp("USER=", environ[cached_user_index], 5))   {
         return environ[cached_user_index] + 5;
     }
@@ -74,12 +88,20 @@ char *get_user()  {
 }
 
 char **parse_path(size_t *len) {
+    /*
+    * Parses the path into an array of strings. Because this calls
+    * split_on_char() in the background, you should follow its free() policy
+    */
     char *PATH = (char *) malloc(sizeof(char) * (strlen(get_path()) + 1));
     strcpy(PATH, get_path());
     return split_on_char(PATH, ":", len);
 }
 
 char *translate_home(char *string, size_t *len) {
+    /*
+    * Takes a string, and if it begins with a ~, translate that into the
+    * appropriate home directory. You are responsible for free()ing the result.
+    */
     if (string[0] == '~')  {
         *len = 5 + strlen(get_user()) + strlen(string);
         char *new_path = (char *) malloc(sizeof(char) * (*len));
@@ -129,11 +151,80 @@ char run_command(char *command, char silent_dne) {
     return ret;
 }
 
+void parse_command(char *command) {
+    /*
+    * Parses a command and takes the appropriate action. Atm that means:
+    * 1. exits
+    * 2. complains about exit
+    * 3. changes the prompt
+    * 4. prints a sarcastic help
+    * 5. changes a directory
+    * 6. runs a binary
+    */
+    if (!strncmp("exit()", command, 6)) {
+        exit(0);
+    }
+    else if (!strncmp("exit", command, 4))  {
+        printf("Use exit() to exit 凸ಠ益ಠ)凸\n");
+    }
+    else if (!strncmp("PS1=\"", command, 5))  {
+        command += 5;
+        size_t pos = 0;
+        while(command[pos] != '"')
+            ++pos;
+        if (prompt_changed)
+            free(prompt);
+        prompt = (char *) calloc(sizeof(char), pos + 1);
+        strncpy(prompt, command, pos);
+        prompt_changed = 1;
+    }
+    else if (!strncmp("help", command, 4)) {
+        printf("Just use it like bash! Gosh! ｏ( ><)o\n");
+    }
+    else if (!strncmp("cd", command, 2))  {
+        size_t len = 0;
+        char *translated = translate_home(command + 3, &len);
+        printf("%s\n", translated);
+        chdir(translated);
+        if (len == (size_t) -1) {
+            free(translated);
+        }
+    }
+    else if (!strncmp("/", command, 1) ||
+             !strncmp(".", command, 1) ||
+             !strncmp("~", command, 1)) {
+        run_command(command, 0);
+    }
+    else  {
+        size_t len, command_len = strlen(command);
+        char worked = 0,
+             **parsed_path = parse_path(&len);
+        for (size_t i = 0; i < len; i++)    {
+            // printf("PATH element %0lu is %s\n", i+1,  parsed_path[i]);
+            size_t segment_len = strlen(parsed_path[i]);
+            char *program = (char *) malloc(sizeof(char) * (segment_len + command_len + 1));
+            memcpy(program, parsed_path[i], segment_len);
+            program[segment_len] = '/';
+            strcpy(program + segment_len + 1, command);
+            int status = run_command(program, 1);
+            free(program);
+            // printf("%i\n", status);
+            if (!status || status != -1)  {
+                worked = !status;
+                break;
+            }
+        }
+        if (!worked)  {
+            size_t _;
+            char **parsed = split_on_char(command, " ", &_);
+            printf("%s does not exits... ಠ_ಠ\n", parsed[0]);
+            free(parsed);
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     if (get_path() != NULL) {
-        printf("PATH is %s\n", get_path());
-        size_t len;
-        char **parsed_path = parse_path(&len);
         if (get_user() != NULL) {
             size_t user_len = strlen(get_user());
             prompt = (char *) calloc(sizeof(char), user_len + 15);
@@ -148,66 +239,7 @@ int main(int argc, char **argv) {
             }
             else  {
                 add_history(command);
-            }
-
-            if (!strncmp("exit()", command, 6)) {
-                exit(0);
-            }
-            else if (!strncmp("exit", command, 4))  {
-                printf("Use exit() to exit 凸ಠ益ಠ)凸\n");
-            }
-            else if (!strncmp("PS1=\"", command, 5))  {
-                command += 5;
-                size_t pos = 0;
-                while(command[pos] != '"')
-                    ++pos;
-                if (prompt_changed)
-                    free(prompt);
-                prompt = (char *) calloc(sizeof(char), pos + 1);
-                strncpy(prompt, command, pos);
-                prompt_changed = 1;
-            }
-            else if (!strncmp("help", command, 4)) {
-                printf("Just use it like bash! Gosh! ｏ( ><)o\n");
-            }
-            else if (!strncmp("cd", command, 2))  {
-                size_t len = 0;
-                char *translated = translate_home(command + 3, &len);
-                printf("%s\n", translated);
-                chdir(translated);
-                if (len == (size_t) -1) {
-                    free(translated);
-                }
-            }
-            else if (!strncmp("/", command, 1) ||
-                     !strncmp(".", command, 1) ||
-                     !strncmp("~", command, 1)) {
-                run_command(command, 0);
-            }
-            else  {
-                size_t command_len = strlen(command);
-                char worked = 0;
-                for (size_t i = 0; i < len; i++)    {
-                    // printf("PATH element %0lu is %s\n", i+1,  parsed_path[i]);
-                    size_t segment_len = strlen(parsed_path[i]);
-                    char *program = (char *) malloc(sizeof(char) * (segment_len + command_len + 1));
-                    memcpy(program, parsed_path[i], segment_len);
-                    program[segment_len] = '/';
-                    strcpy(program + segment_len + 1, command);
-                    int status = run_command(program, 1);
-                    free(program);
-                    // printf("%i\n", status);
-                    if (!status || status != -1)  {
-                        worked = !status;
-                        break;
-                    }
-                }
-                if (!worked)  {
-                    size_t _;
-                    char **parsed = split_on_char(command, " ", &_);
-                    printf("%s does not exits... ಠ_ಠ\n", parsed[0]);
-                    free(parsed);
-                }
+                parse_command(command);
             }
         }
     }
