@@ -13,8 +13,9 @@ Points done:
 		ctrl-l = clear screen
   2 Change Prompt
     PS1="what is you command?"
+  2 History/tab completion
 
-Total: 7/15 G
+Total: 9/15 G
        0/15 D
 */
 
@@ -142,8 +143,14 @@ int main(int argc, char **argv) {
         }
         while (1) {
             char *command = readline(prompt);
-            if (!strlen(command)) {}
-            else if (!strncmp("exit()", command, 6)) {
+            if (!strlen(command)) {
+                continue;
+            }
+            else  {
+                add_history(command);
+            }
+
+            if (!strncmp("exit()", command, 6)) {
                 exit(0);
             }
             else if (!strncmp("exit", command, 4))  {
