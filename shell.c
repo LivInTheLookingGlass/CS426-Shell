@@ -153,7 +153,7 @@ char run_command(char *command, char silent_dne) {
     return ret;
 }
 
-void parse_command(char *command) {
+char parse_command(char *command) {
     /*
     * Parses a command and takes the appropriate action. Atm that means:
     * 1. exits
@@ -162,6 +162,8 @@ void parse_command(char *command) {
     * 4. prints a sarcastic help
     * 5. changes a directory
     * 6. runs a binary
+    *
+    * Returns: The exit status of the command (0 is good)
     */
     printf("%s\n", command);
     if (!strncmp("exit()", command, 6)) {
@@ -169,6 +171,7 @@ void parse_command(char *command) {
     }
     else if (!strncmp("exit", command, 4))  {
         printf("Use exit() to exit 凸ಠ益ಠ)凸\n");
+        return -1;
     }
     else if (!strncmp("PS1=\"", command, 5))  {
         command += 5;
@@ -180,23 +183,26 @@ void parse_command(char *command) {
         prompt = (char *) calloc(sizeof(char), pos + 1);
         strncpy(prompt, command, pos);
         prompt_changed = 1;
+        return 0;
     }
     else if (!strncmp("help", command, 4)) {
         printf("Just use it like bash! Gosh! ｏ( ><)o\n");
+        return 0;
     }
     else if (!strncmp("cd", command, 2))  {
         size_t len = 0;
         char *translated = translate_home(command + 3, &len);
         printf("%s\n", translated);
-        chdir(translated);
+        char ret = chdir(translated);
         if (len == (size_t) -1) {
             free(translated);
         }
+        return ret;
     }
     else if (!strncmp("/", command, 1) ||
              !strncmp(".", command, 1) ||
              !strncmp("~", command, 1)) {
-        run_command(command, 0);
+        return run_command(command, 0);
     }
     else  {
         size_t len, command_len = strlen(command);
@@ -223,6 +229,7 @@ void parse_command(char *command) {
             printf("%s does not exists... ಠ_ಠ\n", parsed[0]);
             free(parsed);
         }
+        return !worked;
     }
 }
 
