@@ -50,7 +50,8 @@ char **split_on_char(char *string, const char *tok, size_t *len) {
             ret = (char **) realloc(ret, sizeof(char **) * (*len + 1));
         }
     }
-    return (char **) realloc(ret, sizeof(char **) * (*len));
+    ret[*len] = NULL;
+    return (char **) realloc(ret, sizeof(char **) * (*len + 1));
 }
 
 char *get_path()    {
@@ -123,6 +124,7 @@ char run_command(char *command, char silent_dne) {
     for (size_t i = 0; i < len; i++)  {
         parsed[i] = translate_home(parsed[i], lens + i);
     }
+
     pid_t pid = fork();
     if (pid == 0) {
         execvp(parsed[0], parsed);
@@ -161,6 +163,7 @@ void parse_command(char *command) {
     * 5. changes a directory
     * 6. runs a binary
     */
+    printf("%s\n", command);
     if (!strncmp("exit()", command, 6)) {
         exit(0);
     }
@@ -217,7 +220,7 @@ void parse_command(char *command) {
         if (!worked)  {
             size_t _;
             char **parsed = split_on_char(command, " ", &_);
-            printf("%s does not exits... ಠ_ಠ\n", parsed[0]);
+            printf("%s does not exists... ಠ_ಠ\n", parsed[0]);
             free(parsed);
         }
     }
@@ -239,7 +242,16 @@ int main(int argc, char **argv) {
             }
             else  {
                 add_history(command);
-                parse_command(command);
+                size_t semicolonlen = 0;
+                char **semicolonparsed = split_on_char(command, ";", &semicolonlen);
+                for(size_t i = 0; i < semicolonlen; i++){
+                    while(semicolonparsed[i][0] == ' '){//If the first character is a space, move along cmd until its not.
+                        semicolonparsed[i]++;
+                    }
+                    if(strlen(semicolonparsed[i])){//If the command is not empty
+                        parse_command(semicolonparsed[i]);
+                    }
+                }
             }
         }
     }
