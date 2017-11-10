@@ -286,7 +286,7 @@ int main(int argc, char **argv) {
             size_t user_len = strlen(get_user());
             prompt = (char *) calloc(sizeof(char), user_len + 15);
             strncpy(prompt, get_user(), user_len);
-            strcpy(prompt + user_len, " says what? | ");
+            strcpy(prompt + user_len, " says what? >> ");
             prompt_changed = 1;
         }
         while (1) {
