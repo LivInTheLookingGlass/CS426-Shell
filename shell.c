@@ -15,8 +15,12 @@ Points done:
     PS1="what is you command?"
   2 History/tab completion
 
-Total: 9/15 G
-       0/15 D
+  2 SemiColons, multiple or single
+
+  1 Parses for double ampersands
+Total: 11/30
+
+Parses for semicolons, then double ampersands, then executes each command.
 */
 
 #include <stdlib.h>
@@ -33,6 +37,24 @@ size_t cached_path_index = 0, cached_user_index = 0;
 char *prompt = (char *) ">>> ";
 char prompt_changed = 0;
 
+char *trimwhitespace(char *str){ //https://stackoverflow.com/questions/122616/how-do-i-trim-leading-trailing-whitespace-in-a-standard-way
+  char *end;
+
+  // Trim leading space
+  while(isspace((unsigned char)*str)) str++;
+
+  if(*str == 0)  // All spaces?
+    return str;
+
+  // Trim trailing space
+  end = str + strlen(str) - 1;
+  while(end > str && isspace((unsigned char)*end)) end--;
+
+  // Write new null terminator
+  *(end+1) = 0;
+
+  return str;
+}
 char **split_on_char(char *string, const char *tok, size_t *len) {
     /*
     * Returns an array of strings, based on the input string, split by tok.
@@ -97,6 +119,7 @@ char **parse_path(size_t *len) {
     strcpy(PATH, get_path());
     return split_on_char(PATH, ":", len);
 }
+
 
 char *translate_home(char *string, size_t *len) {
     /*
@@ -165,7 +188,8 @@ char parse_command(char *command) {
     *
     * Returns: The exit status of the command (0 is good)
     */
-    printf("%s\n", command);
+    //printf("%s\n", command); Used to verify parse was receving proper command.
+
     if (!strncmp("exit()", command, 6)) {
         exit(0);
     }
@@ -233,6 +257,29 @@ char parse_command(char *command) {
     }
 }
 
+void doubleampprocess (char* command){ //Processes commands with doubleamps
+    size_t doubleamplen = 0;
+    char **doubleampparsed = split_on_char(command, "&&", &doubleamplen);
+    for(size_t i = 0; i < doubleamplen; i++){
+        doubleampparsed[i] = trimwhitespace(doubleampparsed[i]);
+        if(strlen(doubleampparsed[i])){//If the command is not empty
+            if(parse_command(doubleampparsed[i]))
+                break;
+        }
+    }
+}
+
+void semicolonprocess (char* command){ //Processes commands with semicolons, then passes that to double amp for processing.
+    size_t semicolonlen = 0;
+    char **semicolonparsed = split_on_char(command, ";", &semicolonlen);
+    for(size_t i = 0; i < semicolonlen; i++){
+        semicolonparsed[i] = trimwhitespace(semicolonparsed[i]);
+        if(strlen(semicolonparsed[i])){//If the command is not empty
+            doubleampprocess(semicolonparsed[i]);
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     if (get_path() != NULL) {
         if (get_user() != NULL) {
@@ -249,16 +296,7 @@ int main(int argc, char **argv) {
             }
             else  {
                 add_history(command);
-                size_t semicolonlen = 0;
-                char **semicolonparsed = split_on_char(command, ";", &semicolonlen);
-                for(size_t i = 0; i < semicolonlen; i++){
-                    while(semicolonparsed[i][0] == ' '){//If the first character is a space, move along cmd until its not.
-                        semicolonparsed[i]++;
-                    }
-                    if(strlen(semicolonparsed[i])){//If the command is not empty
-                        parse_command(semicolonparsed[i]);
-                    }
-                }
+                semicolonprocess (command);
             }
         }
     }
