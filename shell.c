@@ -23,10 +23,10 @@ Total: 11/30
 Parses for semicolons, then double ampersands, then executes each command.
 */
 
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <readline/readline.h>
@@ -126,15 +126,44 @@ char *translate_home(char *string, size_t *len) {
     * Takes a string, and if it begins with a ~, translate that into the
     * appropriate home directory. You are responsible for free()ing the result.
     */
+    char changed = 0;
+    *len = strlen(string);
     if (string[0] == '~')  {
-        *len = 5 + strlen(get_user()) + strlen(string);
+        *len = 5 + strlen(string);
         char *new_path = (char *) malloc(sizeof(char) * (*len));
-        memcpy(new_path, "/home/", 6);
-        strcpy(new_path + 6, get_user());
-        strcpy(new_path + 6 + strlen(get_user()), string + 1);
-        return new_path;
+        strcpy(new_path, "$HOME");
+        strcpy(new_path + 5, string + 1);
+        changed = 1;
+        string = new_path;
     }
-    *len = -1;
+    for(size_t i = 1; i < *len; i++)    {
+        if (string[i-1] == '$')   {
+            for (size_t offset = 1; i + offset < *len; offset++)    {
+                char former = string[i + offset];
+                string[i + offset] = 0;
+                if (getenv(string + i) != NULL) {
+                    char *replacement = getenv(string + i);
+                    string[i + offset] = former;
+                    char *new_path = (char *) malloc(sizeof(char) * (strlen(replacement) + strlen(string) - offset));
+                    memcpy(new_path, string, i);
+                    strcpy(new_path + i, replacement);
+                    strcpy(new_path + i + strlen(replacement), string + i + offset);
+                    *len = strlen(new_path);
+                    if (changed)    {
+                        free(string);
+                    }
+                    changed = 1;
+                    string = new_path;
+                }
+                else    {
+                    string[i + offset] = former;
+                }
+            }
+        }
+    }
+    if (!changed)   {
+        *len = -1;
+    }
     return string;
 }
 
