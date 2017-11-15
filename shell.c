@@ -223,9 +223,19 @@ char parse_command(char *command) {
         }
         return ret;
     }
+    else if (!strncmp(". ", command, 2)) {
+        size_t len;
+        char *nextline = translate_home(command + 2, &len);
+        FILE *f = fopen(nextline, "r");
+        while ((len = getline(&nextline, &len, f)))  {
+            if (len != 0 && run_command(nextline, 0))
+                return 1;
+        }
+        return 0;
+    }
     else if (!strncmp("/", command, 1) ||
-             !strncmp(".", command, 1) ||
-             !strncmp("~", command, 1)) {
+             !strncmp("./", command, 2) ||
+             !strncmp("~/", command, 2)) {
         return run_command(command, 0);
     }
     else  {
