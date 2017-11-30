@@ -20,25 +20,12 @@ Points done:
   2 Expands enviornment variables on the command line
 
   1 Parses for double ampersands
-Total: 13/30
+Total: 14/30
 
 Parses for semicolons, then double ampersands, then executes each command.
 */
 
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/wait.h>
-#include <sys/types.h>
-#include <readline/readline.h>
-#include <readline/history.h>
-#include <wordexp.h>
-
-extern char **environ;
-size_t cached_path_index = 0, cached_user_index = 0;
-char *prompt = (char *) ">>> ";
-char prompt_changed = 0;
+#include "shell.h"
 
 char *trimwhitespace(char *str){ //https://stackoverflow.com/questions/122616/how-do-i-trim-leading-trailing-whitespace-in-a-standard-way
   char *end;
@@ -48,7 +35,6 @@ char *trimwhitespace(char *str){ //https://stackoverflow.com/questions/122616/ho
 
   if(*str == 0)  // All spaces?
     return str;
-
   // Trim trailing space
   end = str + strlen(str) - 1;
   while(end > str && isspace((unsigned char)*end)) end--;
