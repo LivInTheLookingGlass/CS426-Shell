@@ -204,22 +204,31 @@ char parse_command(char *command) {
     else if (!strncmp("cd", command, 2))  {
         size_t len = 0;
         char *translated = translate_home(command + 3, &len);
-        printf("%s\n", translated);
+        //printf("%s\n", translated);
         char ret = chdir(translated);
         if (len == (size_t) -1) {
             free(translated);
         }
         return ret;
     }
-    else if (!strncmp(". ", command, 2)) {
+    else if (!strncmp(". ", command, 2)) {  //wtflolkillmenowz
         size_t len;
-        char *nextline = translate_home(command + 2, &len);
-        FILE *f = fopen(nextline, "r");
-        while ((len = getline(&nextline, &len, f)) != (size_t)-1)  {
-            nextline = trimwhitespace(nextline);
-            if (strlen(nextline) != 0 && run_command(nextline, 0))
-                return 1;
+        ssize_t read = 0;
+        char *nextline = NULL;
+        char *filename = translate_home(command + 2, &len);
+        FILE *f = fopen(filename, "r");
+        free(filename);
+        if(f == NULL){
+            printf("%s does not exist \n", nextline);
+            return 1;
         }
+        while ((read = getline(&nextline, &len, f)) != -1)  {
+            nextline = trimwhitespace(nextline);
+            if (strlen(nextline) != 0)
+                semicolonprocess(nextline);
+        }
+        fclose(f);
+        free(nextline);
         return 0;
     }
     else if (!strncmp("/", command, 1) ||
@@ -280,7 +289,11 @@ void semicolonprocess (char* command){ //Processes commands with semicolons, the
 }
 
 int main(int argc, char **argv) {
+
     if (get_path() != NULL) {
+        char startup[10];
+        strcpy(startup, ". myshell");
+        semicolonprocess(startup); // this is REALLY fragile
         if (get_user() != NULL) {
             size_t user_len = strlen(get_user());
             prompt = (char *) calloc(sizeof(char), user_len + 15);
