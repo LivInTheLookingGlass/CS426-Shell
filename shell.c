@@ -20,7 +20,9 @@ Points done:
   2 Expands enviornment variables on the command line
 
   1 Parses for double ampersands
-Total: 14/30
+
+  2 Can read commands from file
+Total: 16/30
 
 Parses for semicolons, then double ampersands, then executes each command.
 */
@@ -44,6 +46,7 @@ char *trimwhitespace(char *str){ //https://stackoverflow.com/questions/122616/ho
 
   return str;
 }
+
 char **split_on_char(char *string, const char *tok, size_t *len) {
     /*
     * Returns an array of strings, based on the input string, split by tok.
@@ -108,7 +111,6 @@ char **parse_path(size_t *len) {
     strcpy(PATH, get_path());
     return split_on_char(PATH, ":", len);
 }
-
 
 char *translate_home(char *string, size_t *len) {
     /*
@@ -213,8 +215,9 @@ char parse_command(char *command) {
         size_t len;
         char *nextline = translate_home(command + 2, &len);
         FILE *f = fopen(nextline, "r");
-        while ((len = getline(&nextline, &len, f)))  {
-            if (len != 0 && run_command(nextline, 0))
+        while ((len = getline(&nextline, &len, f)) != (size_t)-1)  {
+            nextline = trimwhitespace(nextline);
+            if (strlen(nextline) != 0 && run_command(nextline, 0))
                 return 1;
         }
         return 0;

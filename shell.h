@@ -8,7 +8,7 @@
 #include <readline/history.h>
 #include <wordexp.h>
 
-
+#define errorcheck(condition, msg) if condition perror(msg);
 extern char **environ;
 size_t cached_path_index = 0, cached_user_index = 0;
 char *prompt = (char *) ">>> ";
