@@ -22,7 +22,9 @@ Points done:
   1 Parses for double ampersands
 
   2 Can read commands from file
-Total: 16/30
+
+  2 Opens myshell on startup
+Total: 18/30
 
 Parses for semicolons, then double ampersands, then executes each command.
 */
