@@ -23,8 +23,10 @@ Points done:
 
   2 Can read commands from file
 
-  2 Opens myshell on startup
-Total: 18/30
+  2 Opens myshell on startup - myshell cannot have more than 2 commands
+
+  3 Suggests commands that are spelled incorrectly or not installed
+Total: 21/30
 
 Parses for semicolons, then double ampersands, then executes each command.
 */
@@ -128,7 +130,7 @@ char *translate_home(char *string, size_t *len) {
     return string;
 }
 
-char run_command(char *command, char silent_dne) {
+char run_command(char *command, char silent_dne, char silent_err) {
     size_t len = 0,
           *lens;
     char **parsed = split_on_char(command, " ", &len);
@@ -153,7 +155,8 @@ char run_command(char *command, char silent_dne) {
                     printf("%s does not exist... (╯°□°）╯︵ ┻━┻\n", parsed[0]);
             }
             else if (ret) {
-                printf("%s failed! (Status %i)... ಠ_ಠ\n", parsed[0], ret);
+                if(!silent_err)
+                    printf("%s failed! (Status %i)... ಠ_ಠ\n", parsed[0], ret);
             }
         }
     }
@@ -236,7 +239,7 @@ char parse_command(char *command) {
     else if (!strncmp("/", command, 1) ||
              !strncmp("./", command, 2) ||
              !strncmp("~/", command, 2)) {
-        return run_command(command, 0);
+        return run_command(command, 0, 0);
     }
     else  {
         size_t len, command_len = strlen(command);
@@ -249,7 +252,7 @@ char parse_command(char *command) {
             memcpy(program, parsed_path[i], segment_len);
             program[segment_len] = '/';
             strcpy(program + segment_len + 1, command);
-            int status = run_command(program, 1);
+            int status = run_command(program, 1, 0);
             free(program);
             // printf("%i\n", status);
             if (!status || status != -1)  {
@@ -260,8 +263,14 @@ char parse_command(char *command) {
         if (!worked)  {
             size_t _;
             char **parsed = split_on_char(command, " ", &_);
-            printf("%s does not exists... ಠ_ಠ\n", parsed[0]);
+            char *notfound = (char *) "/usr/lib/command-not-found ";
+            char *cmd = (char *) malloc(strlen(parsed[0]) + 27 + 1);
+            strcpy(cmd, notfound);
+            strcpy(cmd + 27, parsed[0]);
+            run_command(cmd, 1, 1);
+            //printf("%s does not exist... ಠ_ಠ\n", parsed[0]);
             free(parsed);
+            free(cmd);
         }
         return !worked;
     }
