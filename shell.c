@@ -3,7 +3,7 @@ Points done:
 
   1 Can run an executable
 		/bin/ls
-	1 You search the path for the executable
+  1 You search the path for the executable
 		ls
   1 Knows how to change directory
 		cd /fred
@@ -26,7 +26,8 @@ Points done:
   2 Opens myshell on startup - myshell cannot have more than 2 commands
 
   3 Suggests commands that are spelled incorrectly or not installed
-Total: 21/30
+  1 Prompt includes username
+Total: 22/30
 
 Parses for semicolons, then double ampersands, then executes each command.
 */
@@ -130,7 +131,7 @@ char *translate_home(char *string, size_t *len) {
     return string;
 }
 
-char run_command(char *command, char silent_dne, char silent_err) {
+char run_command(char *command, char silent_dne, char silent_err, pipe_t pipecommand, pipe_t pipecloses) {
     size_t len = 0,
           *lens;
     char **parsed = split_on_char(command, " ", &len);
@@ -142,11 +143,27 @@ char run_command(char *command, char silent_dne, char silent_err) {
 
     pid_t pid = fork();
     if (pid == 0) {
+        for (int i = 0; i <= 1; i++)    {
+            if (pipecloses[i] != i) {
+                close(pipecloses[i]);
+            }
+            if (pipecommand[i] != i)    {
+                if (dup2(i, pipecommand[i]) == -1)    {
+                    perror("dup2 failed");
+                    exit(-1);
+                }
+            }
+        }
         execvp(parsed[0], parsed);
         exit(-1);
     }
     else    {
         int status;
+        for (int i = 0; i <= 1; i++)    {
+            if (pipecommand[i] != i) {
+                close(pipecommand[i]);
+            }
+        }
         waitpid(pid, &status, WUNTRACED);
         if (WEXITSTATUS(status))  {
             ret = WEXITSTATUS(status);
@@ -169,7 +186,7 @@ char run_command(char *command, char silent_dne, char silent_err) {
     return ret;
 }
 
-char parse_command(char *command) {
+char parse_command(char *command, pipe_t pipecommand, pipe_t pipecloses) {
     /*
     * Parses a command and takes the appropriate action. Atm that means:
     * 1. exits
@@ -239,7 +256,7 @@ char parse_command(char *command) {
     else if (!strncmp("/", command, 1) ||
              !strncmp("./", command, 2) ||
              !strncmp("~/", command, 2)) {
-        return run_command(command, 0, 0);
+        return run_command(command, 0, 0, pipecommand, pipecloses);
     }
     else  {
         size_t len, command_len = strlen(command);
@@ -252,7 +269,7 @@ char parse_command(char *command) {
             memcpy(program, parsed_path[i], segment_len);
             program[segment_len] = '/';
             strcpy(program + segment_len + 1, command);
-            int status = run_command(program, 1, 0);
+            int status = run_command(program, 1, 0, pipecommand, pipecloses);
             free(program);
             // printf("%i\n", status);
             if (!status || status != -1)  {
@@ -267,7 +284,7 @@ char parse_command(char *command) {
             char *cmd = (char *) malloc(strlen(parsed[0]) + 27 + 1);
             strcpy(cmd, notfound);
             strcpy(cmd + 27, parsed[0]);
-            run_command(cmd, 1, 1);
+            run_command(cmd, 1, 1, pipecommand, pipecloses);
             //printf("%s does not exist... ಠ_ಠ\n", parsed[0]);
             free(parsed);
             free(cmd);
@@ -282,7 +299,7 @@ void doubleampprocess (char* command){ //Processes commands with doubleamps
     for(size_t i = 0; i < doubleamplen; i++){
         doubleampparsed[i] = trimwhitespace(doubleampparsed[i]);
         if(strlen(doubleampparsed[i])){//If the command is not empty
-            if(parse_command(doubleampparsed[i]))
+            if(pipeprocess(doubleampparsed[i]))
                 break;
         }
     }
@@ -299,6 +316,36 @@ void semicolonprocess (char* command){ //Processes commands with semicolons, the
     }
 }
 
+
+char pipeprocess (char * command){
+    //Look for pipes, and process data properly
+    size_t pipelen = 0;
+    char retval = 0;
+    char **pipeparsed = split_on_char(command, "|", &pipelen);
+    pipe_t pipes[pipelen];
+    pipes[0][0] = 0;
+    pipes[pipelen-1][1] = 1;
+
+    for(size_t i = 0; i < pipelen; i++){
+        pipe_t closes = {0,1};
+        if (i < pipelen-1)  {
+            pipe_t pipei;
+            pipe2(pipei, O_NONBLOCK);//Creates pipe on each command
+            pipes[i][1] = pipei[0];//Takes command i output, and sets to current input
+            pipes[i+1][0] = pipei[1];//Sets current output to next input.
+            closes[1] = pipei[1];
+        }
+        if (i > 0)  {
+            closes[0] = pipes[i-1][1];
+        }
+
+        pipeparsed[i] = trimwhitespace(pipeparsed[i]);
+        if(strlen(pipeparsed[i])){//If the command is not empty
+            retval = parse_command(pipeparsed[i], pipes[i], closes);
+        }
+    }
+    return retval;
+}
 int main(int argc, char **argv) {
 
     if (get_path() != NULL) {
