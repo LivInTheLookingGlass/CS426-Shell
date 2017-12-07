@@ -27,7 +27,9 @@ Points done:
 
   3 Suggests commands that are spelled incorrectly or not installed
   1 Prompt includes username
-Total: 22/30
+  3 Can run commands in the background.
+		processImage &
+Total: 25/30
 
 Parses for semicolons, then double ampersands, then executes each command.
 */
@@ -293,13 +295,31 @@ char parse_command(char *command, pipe_t pipecommand, pipe_t pipecloses) {
     }
 }
 
+char singleampprocess (char* command){ //Processes commands with doubleamps
+    size_t singleamplen = 0;
+    char retval = 0;
+    pid_t pid;
+    char **singleampparsed = split_on_char(command, "&", &singleamplen);
+    for(size_t i = 0; i < singleamplen; i++){
+        singleampparsed[i] = trimwhitespace(singleampparsed[i]);
+        if(strlen(singleampparsed[i])){//If the command is not empty
+            if (i == singleamplen - 1 || (pid = fork()) == 0) {// if I'm last or a kid
+                retval = pipeprocess(singleampparsed[i]);
+                if (!pid)
+                    exit(0);
+            }
+        }
+    }
+    return retval;
+}
+
 void doubleampprocess (char* command){ //Processes commands with doubleamps
     size_t doubleamplen = 0;
     char **doubleampparsed = split_on_char(command, "&&", &doubleamplen);
     for(size_t i = 0; i < doubleamplen; i++){
         doubleampparsed[i] = trimwhitespace(doubleampparsed[i]);
         if(strlen(doubleampparsed[i])){//If the command is not empty
-            if(pipeprocess(doubleampparsed[i]))
+            if(singleampprocess(doubleampparsed[i]))
                 break;
         }
     }
@@ -311,7 +331,7 @@ void semicolonprocess (char* command){ //Processes commands with semicolons, the
     for(size_t i = 0; i < semicolonlen; i++){
         semicolonparsed[i] = trimwhitespace(semicolonparsed[i]);
         if(strlen(semicolonparsed[i])){//If the command is not empty
-            doubleampprocess(semicolonparsed[i]);
+            singleampprocess(semicolonparsed[i]);
         }
     }
 }
