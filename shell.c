@@ -232,6 +232,8 @@ char parse_command(char *command, pipe_t pipecommand, pipe_t pipecloses) {
         char *translated = translate_home(command + 3, &len);
         //printf("%s\n", translated);
         char ret = chdir(translated);
+        if (ret)
+            printf("That directory does not exist\n");
         if (len == (size_t) -1) {
             free(translated);
         }
