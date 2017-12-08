@@ -127,7 +127,9 @@ char *translate_home(char *string, size_t *len) {
     * appropriate home directory. You are responsible for free()ing the result.
     */
     wordexp_t expanded;
-    wordexp(string, &expanded, WRDE_NOCMD);
+    *len = wordexp(string, &expanded, WRDE_NOCMD | WRDE_UNDEF);
+    if (*len)
+        return NULL;
     *len = strlen(string);
     string = (char *) malloc(sizeof(char) * (*len + 1));
     strcpy(string, expanded.we_wordv[0]);
@@ -143,6 +145,9 @@ char run_command(char *command, char silent_dne, char silent_err, pipe_t pipecom
     lens = (size_t *) malloc(sizeof(size_t) * len);
     for (size_t i = 0; i < len; i++)  {
         parsed[i] = translate_home(parsed[i], lens + i);
+        if (parsed[i] == NULL)  {
+            return -2;
+        }
     }
 
     pid_t pid = fork();
@@ -262,7 +267,11 @@ char parse_command(char *command, pipe_t pipecommand, pipe_t pipecloses) {
     else if (!strncmp("/", command, 1) ||
              !strncmp("./", command, 2) ||
              !strncmp("~/", command, 2)) {
-        return run_command(command, 0, 0, pipecommand, pipecloses);
+        int ret = run_command(command, 0, 0, pipecommand, pipecloses);
+        if (ret == -2)  {
+            printf("An undefined shell variable was referenced\n");
+        }
+        return ret;
     }
     else  {
         size_t len, command_len = strlen(command);
@@ -278,6 +287,11 @@ char parse_command(char *command, pipe_t pipecommand, pipe_t pipecloses) {
             int status = run_command(program, 1, 0, pipecommand, pipecloses);
             free(program);
             // printf("%i\n", status);
+            if (status == -2)   {
+                worked = 0;
+                printf("An undefined shell variable was referenced\n");
+                break;
+            }
             if (!status || status != -1)  {
                 worked = !status;
                 break;
