@@ -8,7 +8,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <wordexp.h>
-
+#include <signal.h>
 
 extern char **environ;
 size_t cached_path_index = 0, cached_user_index = 0;

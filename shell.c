@@ -1,35 +1,37 @@
 /*
 Points done:
-
+  1 Saves and reloads history to a file
+  1 Catch Keyboard interrupt
+        ctrl+c = does nothing
+        top, ctrl+c = back to prompt
+  2 Opens myshell on startup
+  1 Prompt includes username
+  2 Can read commands from file
+        . myshell
   1 Can run an executable
 		/bin/ls
   1 You search the path for the executable
 		ls
   1 Knows how to change directory
-		cd /fred
+		cd ..
+  2 History/tab completion
+        cd CS426
   1 Replace "~" with the home directory
-		rm ~/junkfile
+		ls ~
   1 Control-L clears the screen
 		ctrl-l = clear screen
   2 Change Prompt
-    PS1="what is you command?"
-  2 History/tab completion
-
-  2 SemiColons, multiple or single
-
+    PS1="what is your command? "
   2 Expands enviornment variables on the command line
-
+        echo $USER
+  2 SemiColons, multiple or single
   1 Parses for double ampersands
-
-  2 Can read commands from file
-
-  2 Opens myshell on startup - myshell cannot have more than 2 commands
-
-  3 Suggests commands that are spelled incorrectly or not installed
-  1 Prompt includes username
   3 Can run commands in the background.
-		processImage &
-Total: 25/30
+        sleep "10s" & echo "first"; ls && ls -l; echo "last"
+  3 Suggests commands that are spelled incorrectly or not installed
+        los
+
+Total: 27/30
 
 Parses for semicolons, then double ampersands, then executes each command.
 */
@@ -366,8 +368,11 @@ char pipeprocess (char * command){
     }
     return retval;
 }
-int main(int argc, char **argv) {
 
+int main(int argc, char **argv) {
+    signal(SIGINT, SIG_IGN);
+    using_history();
+    read_history(".history");
     if (get_path() != NULL) {
         char startup[10];
         strcpy(startup, ". myshell");
@@ -386,6 +391,7 @@ int main(int argc, char **argv) {
             }
             else  {
                 add_history(command);
+                append_history(1, ".history");
                 semicolonprocess (command);
             }
         }
